@@ -2,13 +2,23 @@ name: Deploy React to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # Trigger on push to main
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,12 +30,20 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: Install and Build
-        run: |
-          npm install
-          npm run build
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: dist # Vite builds into the 'dist' folder by default
-          branch: gh-pages # The branch the action will push the build to
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
